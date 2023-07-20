@@ -1,0 +1,425 @@
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>
+        Intro to SceneView - Create a 3D map | Sample | ArcGIS Maps SDK for
+        JavaScript 4.27
+    </title>
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        #plane {
+            cursor: pointer;
+            text-align: center;
+            color: #6e6e6e;
+            border: 1px solid #6e6e6e;
+            background: white;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 30px;
+            height: 30px;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.27/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.27/"></script>
+
+    <script>
+        require([
+            "esri/Map",
+            "esri/views/SceneView",
+            "esri/geometry/Point",
+            "esri/Graphic",
+            "esri/layers/FeatureLayer",
+            "esri/layers/GraphicsLayer",
+            "esri/core/scheduling",
+            "esri/widgets/Expand"
+        ], (
+            Map,
+            SceneView,
+            Point,
+            Graphic,
+            FeatureLayer,
+            GraphicsLayer,
+            scheduling,
+            Expand
+        ) => {
+            const map = new Map({
+                basemap: "topo-vector"
+            });
+
+            const view = new SceneView({
+                container: "viewDiv",
+                map: map,
+                zoom: 12,
+                center: [101, 21]
+            });
+
+            const extent = [];
+
+            // shu(count:2000)
+            // guiji(row:12,col:12)
+            function gui() {
+                const offsetx = 101, offsety = 21;
+                const width = 1, height = 1;
+                const row = 4, col = 4;
+
+                const singlewidth = width / col;
+                const halfsinglewidth = singlewidth / 2;
+                const singleheight = height / row;
+                const halfsingleheight = singleheight / 2;
+
+                let matrix = [];
+                for (let i = 0; i < row; i++) {
+                    matrix[i] = [];
+                    for (let j = 0; j < col; j++) {
+                        matrix[i][j] = [singlewidth * i + halfsinglewidth + offsetx, singleheight * j + halfsingleheight + offsety, 10000];
+                    }
+                }
+                return matrix.reduce((t, i, d) => {
+                    if (d % 2 == 0) {
+                        t = t.concat(i)
+                    } else {
+                        t = t.concat(i.reverse())
+                    }
+                    return t;
+                }, []);
+            }
+            let feijipath = gui();
+            function guiji() {
+
+                let polyline = {
+                    type: "polyline",  // autocasts as new Polyline()
+                    paths: feijipath,
+                    hasZ: true,
+                };
+
+                let polylineSymbol = {
+                    type: "line-3d",
+                    symbolLayers: [{
+                        type: "path",
+                        profile: "circle",
+                        material: {
+                            color: [255, 100, 100]
+                        },
+                        width: 500, // the width in m
+                        height: 500, // the height in m
+                    }]
+                };
+
+                let polylineAtt = {
+                    Name: "Keystone Pipeline",
+                    Owner: "TransCanada"
+                };
+
+                let polylineGraphic = new Graphic({
+                    geometry: polyline,
+                    symbol: polylineSymbol,
+                    attributes: polylineAtt
+                });
+
+                view.graphics.add(polylineGraphic);
+
+            }
+            guiji();
+            // feiji(speed)
+            function feiji() {
+                let path = feijipath
+                // let point = {
+                //     type: "point",
+                //     x: path[0][0],
+                //     y: path[0][1],
+                //     z: path[0][2]
+                // };
+
+                let pointAtt = {
+                    ObjectID: 0,
+                    Name: "Keystone Pipeline",
+                    Owner: "TransCanada"
+                };
+
+                const point = {
+                    type: "point", // autocasts as new Point()
+                    x: path[0][0],
+                    y: path[0][1],
+                    z: path[0][2]
+                };
+
+                const markerSymbol = {
+                    type: "point-3d",  // autocasts as new PointSymbol3D()
+                    symbolLayers: [{
+                        type: "object",  // autocasts as new ObjectSymbol3DLayer()
+                        width: 20000,    // diameter of the object from east to west in meters
+                        // height: 1500,  // height of object in meters
+                        // depth: 1000,   // diameter of the object from north to south in meters
+                        resource: { href: "./plane.glb" },
+                        heading: -15
+                    }]
+                };
+
+                let plantGraphic = new Graphic({
+                    geometry: point,
+                    symbol: markerSymbol,
+                    attributes: pointAtt
+                });
+
+                const graphicsLayer = new GraphicsLayer({
+                    graphics: [plantGraphic]
+                });
+                view.map.add(graphicsLayer);
+
+                // let handle = scheduling.addFrameTask({
+                //     update: function () {
+                //         console.log(arguments)
+                //     }
+                // });
+
+                // Remove frame task as soon as the user starts navigating in the view
+                // reactiveUtils.whenOnce(() => view.navigating, () => handle.remove());
+                return {
+                    rotation: function (n) {
+                        plantGraphic.symbol = {
+                            type: "point-3d",  // autocasts as new PointSymbol3D()
+                            symbolLayers: [{
+                                type: "object",  // autocasts as new ObjectSymbol3DLayer()
+                                width: 20000,    // diameter of the object from east to west in meters
+                                // height: 1500,  // height of object in meters
+                                // depth: 1000,   // diameter of the object from north to south in meters
+                                resource: { href: "./plane.glb" },
+                                heading: -15 + n
+                            }]
+                        };
+                    },
+                    move: function (p) {
+                        plantGraphic.geometry = new Point({
+                            x: p[0],
+                            y: p[1],
+                            z: p[2]
+                        });
+                    }
+                }
+
+            }
+            let fj = feiji();
+
+            createTrees();
+
+            function createTrees() {
+                const treeXYCoordinates = [
+                    ...new Array(3000).fill(0).map(() => { return [Math.random() + 101, Math.random() + 21] })
+                ];
+
+                // Create an elevationSampler to synchronously query the elevation
+                // of the mesh at the tree locations
+
+                // Feature collection used to generate a FeatureLayer with tree features
+                const featureCollection = [];
+                for (let i = 0; i < treeXYCoordinates.length; i++) {
+                    const geometry = new Point({
+                        x: treeXYCoordinates[i][0],
+                        y: treeXYCoordinates[i][1],
+                        spatialReference: 4326
+                    });
+
+                    featureCollection.push({
+                        geometry: geometry,
+                        attributes: {
+                            ObjectID: i,
+                            height: Math.floor(3000 + Math.random() * 500),
+                            heading: Math.floor(Math.random() * 360)
+                        }
+                    });
+                }
+
+                // Create a FeatureLayer from the feature collection
+                const treesLayer = new FeatureLayer({
+                    fields: [
+                        {
+                            name: "ObjectID",
+                            alias: "ObjectID",
+                            type: "oid"
+                        },
+                        {
+                            name: "heading",
+                            alias: "heading",
+                            type: "integer"
+                        },
+                        {
+                            name: "height",
+                            alias: "height",
+                            type: "integer"
+                        }
+                    ],
+                    source: featureCollection,
+                    spatialReference: 4326,
+                    renderer: {
+                        type: "simple",
+                        symbol: {
+                            type: "point-3d",
+                            symbolLayers: [
+                                {
+                                    type: "object",
+                                    resource: {
+                                        // Pine tree 3D model downloaded from Google Poly:
+                                        // https://poly.google.com/view/7rTNpk6j01O
+                                        href: "./pine_tree.glb"
+                                    },
+                                    anchor: "bottom"
+                                }
+                            ]
+                        },
+                        visualVariables: [
+                            {
+                                type: "size",
+                                field: "height",
+                                axis: "height"
+                            },
+                            {
+                                type: "rotation",
+                                field: "heading"
+                            }
+                        ]
+                    }
+                });
+                map.add(treesLayer);
+                view.when(() => {
+                    treesLayer.queryExtent().then(function (results) {
+                        // go to the extent of the results satisfying the query
+                        view.goTo({
+                            target: results.extent,
+                            tilt: 51,
+                            heading: 30,
+                        });
+                    });
+                })
+            }
+            let run = false;
+            function animation() {
+                let functionss = [];
+                for (let i = 0; i < feijipath.length - 1; i++) {
+                    // [[x,y,z],[x,y,z]]
+                    const item = feijipath[i];
+                    const seg = 10;
+                    const pt = [item, feijipath[i + 1]]
+                    let step = [(pt[1][0] - pt[0][0]) / seg, (pt[1][1] - pt[0][1]) / seg, (pt[1][2] - pt[0][2]) / seg]
+                    let start = item;
+                    let stop = feijipath[i + 1]
+                    functionss.push(() => new Promise(res => {
+                        let r = 0;
+                        if (start[0] == stop[0]) {
+                            if (start[1] < stop[1]) {
+                                r = 0;
+                            } else {
+                                r = 180;
+                            }
+                        } else if (start[1] == stop[1]) {
+                            if (start[0] < stop[0]) {
+                                r = 90;
+                            } else {
+                                r = 270;
+                            }
+                        }
+                        fj.rotation(r);
+                        let count = 0;
+                        let handle = scheduling.addFrameTask({
+                            update: function () {
+                                if (count >= seg) {
+                                    handle.remove();
+                                    res();
+                                } else {
+                                    start = [start[0] + step[0], start[1] + step[1], start[2] + step[2]]
+                                    fj.move(start)
+                                    count += 1;
+                                }
+                            }
+                        })
+                    }))
+                }
+
+                let functions = [
+                    () => new Promise(res => {
+                        let count = 0;
+                        // Animate the scene view camera heading in every frame
+                        let handle = scheduling.addFrameTask({
+                            update: function () {
+                                if (count >= 10) {
+                                    handle.remove()
+                                    res();
+                                } else {
+                                    count += 1;
+                                    console.log((new Date()).getTime())
+                                }
+                            }
+                        });
+                    }),
+                    () => new Promise(res => {
+                        let count = 0;
+                        // Animate the scene view camera heading in every frame
+                        let handle = scheduling.addFrameTask({
+                            update: function () {
+                                if (count >= 10) {
+                                    handle.remove()
+                                    res();
+                                }
+                                count += 1;
+                            }
+                        });
+                    }),
+                    () => new Promise(res => {
+                        let count = 0;
+                        // Animate the scene view camera heading in every frame
+                        let handle = scheduling.addFrameTask({
+                            update: function () {
+                                if (count >= 10) {
+                                    handle.remove()
+                                    res();
+                                }
+                                count += 1;
+                            }
+                        });
+                    })
+                ]
+
+                var promisePool = async function (functions, n) {
+                    console.time()
+                    run = true;
+                    await Promise.all([...new Array(n)].map(async () => {
+                        while (functions.length) {
+                            await functions.shift()()
+                        }
+                    }))
+                    console.timeEnd()
+                    run = false;
+                };
+
+
+                promisePool(functionss, 1);
+            }
+
+            document.getElementById('plane').addEventListener("click", () => {
+                if (!run) {
+                    animation();
+                }
+            })
+
+        });
+    </script>
+</head>
+
+<body>
+    <div id="viewDiv">
+    </div>
+    <div class="plane" id="plane">R</div>
+</body>
+
+</html>
