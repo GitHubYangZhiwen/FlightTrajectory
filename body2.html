@@ -1,0 +1,146 @@
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <title>
+        Intro to SceneView - Create a 3D map | Sample | ArcGIS Maps SDK for
+        JavaScript 4.27
+    </title>
+    <style>
+        html,
+        body,
+        #viewDiv {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+        }
+    </style>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.27/esri/themes/light/main.css" />
+    <script src="https://js.arcgis.com/4.27/"></script>
+    <script src="./divOverlay.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/gifler@0.1.0/gifler.min.js"></script> -->
+
+    <script>
+        require([
+            "esri/Map",
+            "esri/views/SceneView",
+            "esri/geometry/Point",
+            "esri/Graphic",
+            "esri/layers/FeatureLayer",
+            "esri/layers/GraphicsLayer",
+            "esri/symbols/PictureMarkerSymbol",
+        ], (
+            Map,
+            SceneView,
+            Point,
+            Graphic,
+            FeatureLayer,
+            GraphicsLayer,
+            PictureMarkerSymbol,
+        ) => {
+
+            const map = new Map({
+                basemap: "topo-vector"
+            });
+
+            const view = new SceneView({
+                container: "viewDiv",
+                map: map,
+                zoom: 12,
+                center: [101, 21]
+            });
+            console.time();
+            view.when(function () {
+                console.timeEnd();
+                render();
+                // This function will execute once the promise is resolved
+            }, function (error) {
+                // This function will execute if the promise is rejected due to an error
+            });
+
+            let render = function () {
+
+                const graphicsLayer = new GraphicsLayer();
+                map.add(graphicsLayer);
+                // London
+
+                let markerSymbol = new PictureMarkerSymbol({
+                    url: "https://static.arcgis.com/images/Symbols/Shapes/BlackStarLargeB.png",
+                    width: "64px",
+                    height: "64px"
+                })
+                for (let i = 0; i < 2; i++) {
+                    const point = {
+                        type: "point", // autocasts as new Point()
+                        x: 101 + Math.random(),
+                        y: 21 + Math.random(),
+                    }
+                    const graph = new Graphic({
+                        geometry: point,
+                        symbol: markerSymbol,
+                        attributes: {
+                            id: i,
+                            content: '<img border="0" src="https://themadcreator.github.io/gifler/assets/gif/run.gif" alt="Pulpit rock" width="45" height="32">'
+                        }
+                    })
+                    graphicsLayer.add(graph);
+                }
+                const divOverlay = new DivOverlay({
+                    map: map,
+                    mapView: view,
+                    source: graphicsLayer.graphics.items, // FeatureLayer、GraphicsLayer
+                    displayField: 'content',
+                    offset: 0,
+                    alignment: 'top-center'
+                });
+                divOverlay.addTo()
+                window.divOverlay = divOverlay;
+
+                setInterval(() => {
+                    const p = graphicsLayer.graphics.items[0].geometry;
+                    graphicsLayer.graphics.items[0].geometry = new Point({
+                        x: p.x + 0.01,
+                        y: p.y + 0.01,
+                    });
+                    divOverlay.update();
+                }, 100);
+
+                // const gifUrl = 'https://themadcreator.github.io/gifler/assets/gif/run.gif';
+                // const gif = gifler(gifUrl);
+                // gif.frames(
+                //     document.createElement('canvas'),
+                //     function (ctx, frame) {
+                //         setTimeout(() => {
+
+                //             var a = {
+                //                 img: ctx.canvas,
+                //                 imgSize: [frame.width, frame.height],
+                //                 opacity: 0.8,
+                //             }
+                //             ctx.clearRect(0, 0, frame.width, frame.height);
+                //             ctx.drawImage(frame.buffer, frame.x, frame.y);
+
+                //             pointGraphic.symbol = new PictureMarkerSymbol({
+                //                 url: ctx.canvas.toDataURL("image/png", 0.1),
+                //                 width: "45px",
+                //                 height: "32px"
+                //             })
+                //         }, 200);
+
+                //     },
+                //     true
+                // );
+
+            }
+        });
+    </script>
+</head>
+
+<body>
+    <div id="viewDiv"></div>
+</body>
+
+</html>
